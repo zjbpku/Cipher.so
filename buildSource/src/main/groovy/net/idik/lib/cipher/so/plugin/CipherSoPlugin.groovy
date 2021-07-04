@@ -26,6 +26,13 @@ class CipherSoPlugin implements Plugin<Project> {
 
     private def createTasks(Project project, AppExtension android) {
 
+        def generateCmakeListFileTask = project.tasks.create("generateCmakeListFile") {
+            group "cipher.so"
+            doLast {
+                generateCMakeListsFile(project, originCmakeListPath)
+            }
+        }
+
         def archiveFile = getNativeArchiveFile(project)
         def copyNativeArchiveTask = project.tasks.create("copyNativeArchive", Copy) {
             group "cipher.so"
@@ -36,31 +43,24 @@ class CipherSoPlugin implements Plugin<Project> {
             into new File(project.buildDir, "cipher.so")
         }
 
-        def generateCmakeListFileTask = project.tasks.create("generateCmakeListFileTask") {
-            doLast {
-                generateCMakeListsFile(project, originCmakeListPath)
-            }
-        }
-
-        project.getTasksByName("preBuild", false).each {
-            it.dependsOn generateCmakeListFileTask
-        }
+        copyNativeArchiveTask.dependsOn generateCmakeListFileTask
 
         android.applicationVariants.all { variant ->
 
             def configs = project.cipher.so
             def keys = configs.keys.asList()
-            def generateCipherSoExternTask = project.tasks.create("generate${StringUtils.capitalize(variant.name)}CipherSoHeader", GenerateCipherSoHeaderTask)
-            generateCipherSoExternTask.configure {
+            def generateCipherSoExternalTask = project.tasks.create("generate${StringUtils.capitalize(variant.name)}CipherSoHeader", GenerateCipherSoHeaderTask)
+            generateCipherSoExternalTask.configure {
                 it.keyExts = keys
                 it.outputDir = IOUtils.getNativeHeaderDir(project)
                 it.signature = configs.signature
+                it.secretKey = configs.encryptSeed
             }
             project.getTasksByName("generateJsonModel${StringUtils.capitalize(variant.name)}", false).each {
                 it.dependsOn copyNativeArchiveTask
-                it.dependsOn generateCipherSoExternTask
+                it.dependsOn generateCipherSoExternalTask
             }
-            def outputDir = new File("${project.buildDir}/generated/source/cipher.so/${variant.name}")
+            def outputDir = new File(project.buildDir, "/generated/source/cipher.so/${variant.name}")
             def generateJavaClientTask = project.tasks.create("generate${StringUtils.capitalize(variant.name)}JavaClient", GenerateJavaClientFileTask)
             generateJavaClientTask.configure {
                 it.keyExts = keys
@@ -91,11 +91,11 @@ class CipherSoPlugin implements Plugin<Project> {
         project.afterEvaluate {
             unzipNativeArchive(project)
             def android = project.extensions.findByType(AppExtension)
-            originCmakeListPath = android.externalNativeBuild.cmake.path?.path
+            originCmakeListPath = android.externalNativeBuild.cmake.path?.canonicalPath
             File targetFile = generateCMakeListsFile(project, originCmakeListPath)
             android.externalNativeBuild {
                 cmake {
-                    path targetFile.path
+                    path targetFile.canonicalPath
                 }
             }
             createTasks(project, android)
@@ -116,7 +116,7 @@ class CipherSoPlugin implements Plugin<Project> {
 
     private static def getNativeArchiveFile(Project project) {
         if (project.rootProject.subprojects.find { it.name == "devso" } != null) {
-            return project.rootProject.file("devso").path
+            return project.rootProject.file("devso").canonicalPath
         } else {
             def archiveZip = findNativeArchiveFromBuildscript(project)
             if (archiveZip == null) {
@@ -131,7 +131,9 @@ class CipherSoPlugin implements Plugin<Project> {
         project.buildscript.configurations.findAll {
             project.gradle.gradleVersion >= '4.0' ? it.isCanBeResolved() : true
         }.each { config ->
-            File file = config.files.find { it.name.toUpperCase(Locale.getDefault()).contains("CIPHER.SO") }
+            File file = config.files.find {
+                it.name.toUpperCase(Locale.getDefault()).contains("CIPHER.SO")
+            }
             if (file != null) {
                 archiveZip = project.zipTree(file)
             }
@@ -141,13 +143,13 @@ class CipherSoPlugin implements Plugin<Project> {
 
     private
     static File generateCMakeListsFile(Project project, String originCMakeListsPath) {
-        def outputDir = new File("${project.buildDir.path}/cipher.so/cmake")
+        def outputDir = new File(project.buildDir, "/cipher.so/cmake")
         if (!outputDir.exists()) {
             outputDir.mkdirs()
         }
         def targetFile = new File(outputDir, "CMakeLists.txt")
         def writer = new FileWriter(targetFile)
-        new CMakeListsBuilder("${project.buildDir.path}/cipher.so/CMakeLists.txt").setOriginCMakePath(originCMakeListsPath).build().each {
+        new CMakeListsBuilder("${project.buildDir.canonicalPath}/cipher.so/CMakeLists.txt").setOriginCMakePath(originCMakeListsPath).build().each {
             writer.append(it)
         }
         writer.flush()

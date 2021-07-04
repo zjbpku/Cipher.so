@@ -5,6 +5,7 @@
 #include "include/cipher-lib.h"
 #include "include/extern-keys.h"
 #include "include/Environments.h"
+#include "include/Encryptor.h"
 
 map<string, string> _map;
 
@@ -27,8 +28,10 @@ Java_net_idik_lib_cipher_so_CipherCore_getString(JNIEnv *env, jclass instance, j
     const char *key = env->GetStringUTFChars(key_, 0);
     string keyStr(key);
     string value = _map[keyStr];
+    Encryptor *encryptor = new Encryptor(env, environments->getContext());
+    const char *result = encryptor->decrypt(SECRET_KEY, value.c_str());
     env->ReleaseStringUTFChars(key_, key);
-    return env->NewStringUTF(value.c_str());
+    return env->NewStringUTF(result);
 }
 
 extern "C" void Java_net_idik_lib_cipher_so_CipherCore_init(JNIEnv *env, jclass type) {

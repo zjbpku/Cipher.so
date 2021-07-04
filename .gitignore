@@ -56,6 +56,6 @@ freeline.py
 freeline/
 freeline_project_description.json
 .idea
-../.cxx/
+.cxx
 #local repo
 repo
