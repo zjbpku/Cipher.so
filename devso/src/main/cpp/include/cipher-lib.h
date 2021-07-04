@@ -24,8 +24,7 @@ Java_net_idik_lib_cipher_so_CipherCore_init(JNIEnv *env, jclass type);
 
 JNIEXPORT jstring
 JNICALL
-Java_net_idik_lib_cipher_so_CipherCore_getString(JNIEnv *env, jobject
-instance, jstring key_);
+Java_net_idik_lib_cipher_so_CipherCore_getString(JNIEnv *env, jclass instance, jstring key_);
 
 #ifdef __cplusplus
 };

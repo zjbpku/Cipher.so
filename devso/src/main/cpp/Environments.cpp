@@ -27,8 +27,7 @@ bool Environments::checkSignature() {
     jclass package_info_clz = jniEnv->GetObjectClass(package_info);
     jfieldID signatures_field_id = jniEnv->GetFieldID(package_info_clz, "signatures",
                                                       "[Landroid/content/pm/Signature;");
-    jobjectArray signatures = (jobjectArray) jniEnv->GetObjectField(package_info,
-                                                                    signatures_field_id);
+    jobjectArray signatures = (jobjectArray) jniEnv->GetObjectField(package_info,signatures_field_id);
     jclass signature_clz = jniEnv->FindClass("android/content/pm/Signature");
     jmethodID get_hashcode_method_id = jniEnv->GetMethodID(signature_clz, "hashCode", "()I");
     int size = jniEnv->GetArrayLength(signatures);
